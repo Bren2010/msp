@@ -29,3 +29,8 @@ monotone raw boolean predicates.  They're built by nesting threshold gates.
 set `{Alice, Bob, Carl}` must be present to recover the secret.  Then,
 `(2, (1, Alice, Bob), Carl)` is the formatted version of
 `(Alice or Bob) and Carl`.
+
+It is possible to convert between different types of predicates (and its one of
+the fundamental operations of splitting secrets with an MSP), but circuit
+minimization is a non-trivial and computationally complex problem.  Therefore,
+its best that the 
