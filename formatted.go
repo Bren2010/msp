@@ -15,7 +15,7 @@ type Formatted struct { // Represents threshold gate (also type of condition)
 
 func StringToFormatted(f string) (out Formatted, err error) {
 	// Automaton.  Modification of Dijkstra's Two-Stack Algorithm for parsing
-	// infix notation.
+	// infix notation.  Running time linear in the size of the predicate?
 	//
 	// Steps either to the next comma or the next unparenthesis.
 	//     (     -> Push new queue onto staging stack
@@ -131,4 +131,43 @@ func (f Formatted) Ok(db *UserDatabase) bool {
 	}
 
 	return false
+}
+
+func (f *Formatted) Compress() {
+  if f.Min == len(f.Conds) {
+    // AND Compression:  (n, ..., (m, ...), ...) = (n + m, ...)
+    for i, cond := range f.Conds {
+      switch cond.(type) {
+      case Formatted:
+        cond := cond.(Formatted)
+        cond.Compress()
+        f.Conds[i] = cond
+
+        if cond.Min == len(cond.Conds) {
+          f.Min += cond.Min - 1
+          f.Conds = append(
+            append(f.Conds[0:i], f.Conds[i + 1:]...),
+            cond.Conds...,
+          )
+        }
+      }
+    }
+  } else if f.Min == 1 {
+    // OR Compression: (1, ..., (1, ...), ...) = (1, ...)
+    for i, cond := range f.Conds {
+      switch cond.(type) {
+      case Formatted:
+        cond := cond.(Formatted)
+        cond.Compress()
+        f.Conds[i] = cond
+
+        if cond.Min == 1 {
+          f.Conds = append(
+            append(f.Conds[0:i], f.Conds[i + 1:]...),
+            cond.Conds...,
+          )
+        }
+      }
+    }
+  }
 }

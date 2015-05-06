@@ -32,5 +32,6 @@ set `{Alice, Bob, Carl}` must be present to recover the secret.  Then,
 
 It is possible to convert between different types of predicates (and its one of
 the fundamental operations of splitting secrets with an MSP), but circuit
-minimization is a non-trivial and computationally complex problem.  Therefore,
-its best that the 
+minimization is a non-trivial and computationally complex problem.  The code can
+do a small amount of compression, but the onus is on the user to design
+efficiently computable predicates.

@@ -28,7 +28,8 @@ func StringToRaw(r string) (out Raw, err error) {
 	// Automaton.  Modification of Dijkstra's Two-Stack Algorithm for parsing
 	// infix notation.  Reads one long unbroken expression (several operators and
 	// operands with no parentheses) at a time and parses it into a binary
-	// expression tree (giving AND operators precedence).
+	// expression tree (giving AND operators precedence).  Running time linear in
+  // the size of the predicate?
 	//
 	// Steps to the next (un)parenthesis.
 	//     (     -> Push new queue onto staging stack
@@ -176,6 +177,8 @@ func (r Raw) String() string {
 }
 
 func (r Raw) Formatted() (out Formatted) {
+  // Recursively maps a raw predicate to a formatted predicate by mapping AND
+  // gates to (2, A, B) treshold gates and OR gates to (1, A, B) gates.
   if r.Type() == NodeAnd {
     out.Min = 2
   } else {
@@ -196,6 +199,7 @@ func (r Raw) Formatted() (out Formatted) {
     out.Conds = append(out.Conds, (*r.Right).(Raw).Formatted())
   }
 
+  out.Compress() // Small amount of predicate compression.
   return
 }
 
