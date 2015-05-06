@@ -175,11 +175,29 @@ func (r Raw) String() string {
 	return out
 }
 
-/*
-func (r Raw) Formatted() Formatted {
+func (r Raw) Formatted() (out Formatted) {
+  if r.Type() == NodeAnd {
+    out.Min = 2
+  } else {
+    out.Min = 1
+  }
 
+  switch (*r.Left).(type) {
+  case String:
+    out.Conds = []Condition{(*r.Left).(String)}
+  default:
+    out.Conds = []Condition{(*r.Left).(Raw).Formatted()}
+  }
+
+  switch (*r.Right).(type) {
+  case String:
+    out.Conds = append(out.Conds, (*r.Right).(String))
+  default:
+    out.Conds = append(out.Conds, (*r.Right).(Raw).Formatted())
+  }
+
+  return
 }
-*/
 
 func (r Raw) Ok(db *UserDatabase) bool {
 	if r.Type() == NodeAnd {

@@ -59,4 +59,16 @@ func TestRaw(t *testing.T) {
   decQuery2, err := StringToRaw(query2String)
   if err != nil || decQuery2.String() != query2String {
     t.Fatalf("Query #2 decoded wrong: %v %v", decQuery2.String(), err)
-  }}
+  }
+
+  formattedQuery1String := "(2, Alice, Bob)"
+	formattedQuery2String := "(2, (1, Alice, Bob), Carl)"
+
+  if query1.Formatted().String() != formattedQuery1String {
+    t.Fatalf("Query #1 formatted wrong: %v", query1.Formatted().String())
+  }
+
+  if query2.Formatted().String() != formattedQuery2String {
+    t.Fatalf("Query #2 formatted wrong: %v", query2.Formatted().String())
+  }
+}
