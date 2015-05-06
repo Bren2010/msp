@@ -1,7 +1,6 @@
 package msp
 
 import (
-  "fmt"
 	"testing"
 )
 
@@ -52,5 +51,12 @@ func TestRaw(t *testing.T) {
 		t.Fatalf("Query #2 String was wrong; %v", query2.String())
 	}
 
-  fmt.Println(StringToRaw("Alice | Bob"))
-}
+  decQuery1, err := StringToRaw(query1String)
+  if err != nil || decQuery1.String() != query1String {
+    t.Fatalf("Query #1 decoded wrong: %v %v", decQuery1.String(), err)
+  }
+
+  decQuery2, err := StringToRaw(query2String)
+  if err != nil || decQuery2.String() != query2String {
+    t.Fatalf("Query #2 decoded wrong: %v %v", decQuery2.String(), err)
+  }}

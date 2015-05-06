@@ -1,163 +1,190 @@
 package msp
 
 import (
-  "strings"
-  "container/list"
-  "errors"
+	"container/list"
+	"errors"
+	"strings"
 )
 
 type NodeType int // Types of node in the binary expression tree.
 
 const (
-    NodeAnd NodeType = iota
-    NodeOr
+	NodeAnd NodeType = iota
+	NodeOr
 )
 
 func (t NodeType) Type() NodeType {
-  return t
+	return t
 }
 
 type Raw struct { // Represents one node in the tree.
-  NodeType
+	NodeType
 
-  Left *Condition
-  Right *Condition
+	Left  *Condition
+	Right *Condition
 }
 
 func StringToRaw(r string) (out Raw, err error) {
-  // Automaton.  Modification of Dijkstra's Two-Stack Algorithm for parsing
-  // infix notation.  Reads one long unbroken expression (several operators and
-  // operands with no parentheses) at a time and parses it into a binary
-  // expression tree (giving AND operators precedence).
+	// Automaton.  Modification of Dijkstra's Two-Stack Algorithm for parsing
+	// infix notation.  Reads one long unbroken expression (several operators and
+	// operands with no parentheses) at a time and parses it into a binary
+	// expression tree (giving AND operators precedence).
+	//
+	// Steps to the next (un)parenthesis.
+	//     (     -> Push new queue onto staging stack
+	//     value -> Push onto back of queue at top of staging stack.
+	//     )     -> Pop queue off top of staging stack, build BET, and push tree
+	//              onto the back of the top queue.
+	//
+  // To build the binary expression tree, for each type of operation we iterate
+  // through the (Condition, operator) lists compacting where that operation
+  // occurs into tree nodes.
   //
-  // Steps to the next (un)parenthesis.
-  //     (     -> Push new queue onto staging stack
-  //     value -> Push onto back of queue at top of staging stack.
-  //     )     -> Pop queue off top of staging stack, build BET, and push tree
-  //              onto the back of the top queue.
-  //
-  // Staging stack is empty on initialization and should have exactly 1 node
-  // (the root node) at the end of the string.}
-  min := func(a, b, c int) int { // Return smallest non-negative argument.
-    if a > b { a, b = b, a } // Sort {a, b, c}
-    if b > c { b, c = c, b }
-    if a > b { a, b = b, a }
+	// Staging stack is empty on initialization and should have exactly 1 node
+	// (the root node) at the end of the string.
+	r = "(" + r + ")"
 
-    if a != -1 {
-      return a
-    } else if b != -1 {
-      return b
-    } else {
-      return c
-    }
-  }
+	min := func(a, b, c int) int { // Return smallest non-negative argument.
+		if a > b { // Sort {a, b, c}
+			a, b = b, a
+		}
+		if b > c {
+			b, c = c, b
+		}
+		if a > b {
+			a, b = b, a
+		}
 
-  getNext := func(r string) (string, string) { // r -> (next, rest)
-    r = strings.TrimSpace(r)
+		if a != -1 {
+			return a
+		} else if b != -1 {
+			return b
+		} else {
+			return c
+		}
+	}
 
-    if r[0] == '(' || r[0] == ')' || r[0] == '&' || r[0] == '|' {
-      return r[0:1], r[1:]
-    }
+	getNext := func(r string) (string, string) { // r -> (next, rest)
+		r = strings.TrimSpace(r)
 
-    nextOper := min(
-      strings.Index(r, "&"),
-      strings.Index(r, "|"),
-      strings.Index(r, ")"),
-    )
+		if r[0] == '(' || r[0] == ')' || r[0] == '&' || r[0] == '|' {
+			return r[0:1], r[1:]
+		}
 
-    if nextOper == -1 {
-      return r, ""
-    }
-    return strings.TrimSpace(r[0:nextOper]), r[nextOper:]
-  }
+		nextOper := min(
+			strings.Index(r, "&"),
+			strings.Index(r, "|"),
+			strings.Index(r, ")"),
+		)
 
-  staging := list.New() // Stack of (Condition list, operator list)
+		if nextOper == -1 {
+			return r, ""
+		}
+		return strings.TrimSpace(r[0:nextOper]), r[nextOper:]
+	}
 
-  var nxt string
-  for len(r) > 0 {
-    nxt, r = getNext(r)
+	staging := list.New() // Stack of (Condition list, operator list)
 
-    switch nxt {
-      case "(":
-        staging.PushFront([2]*list.List{list.New(), list.New()})
-      case ")":
-        top := staging.Remove(staging.Front()).([2]*list.List)
-        if top[0].Len() != (top[1].Len() + 1) {
-          return out, errors.New("Stacks are invalid size.")
-        }
+	var nxt string
+	for len(r) > 0 {
+		nxt, r = getNext(r)
 
-        for typ := NodeAnd; typ <= NodeOr; typ++ {
-          leftOperand := top[0].Front().Next()
+		switch nxt {
+		case "(":
+			staging.PushFront([2]*list.List{list.New(), list.New()})
+		case ")":
+			top := staging.Remove(staging.Front()).([2]*list.List)
+			if top[0].Len() != (top[1].Len() + 1) {
+				return out, errors.New("Stacks are invalid size.")
+			}
 
-          for oper := top[1].Front(); oper != nil; oper = oper.Next() {
-            if oper.Value.(NodeType) == typ {
-              left := leftOperand.Value.(Condition)
-              right := leftOperand.Next().Value.(Condition)
+			for typ := NodeAnd; typ <= NodeOr; typ++ {
+				var step *list.Element
+				leftOperand := top[0].Front()
 
-              leftOperand.Value = Raw{
-                NodeType: typ,
-                Left: &left,
-                Right: &right,
-              }
+				for oper := top[1].Front(); oper != nil; oper = step {
+					step = oper.Next()
 
-              top[0].Remove(leftOperand.Next())
-              top[1].Remove(oper)
-            }
+					if oper.Value.(NodeType) == typ {
+						left := leftOperand.Value.(Condition)
+						right := leftOperand.Next().Value.(Condition)
 
-            leftOperand = leftOperand.Next()
-          }
-        }
+						leftOperand.Next().Value = Raw{
+							NodeType: typ,
+							Left:     &left,
+							Right:    &right,
+						}
 
-        if top[0].Len() != 1 || top[1].Len() != 0 {
-          return out, errors.New("Invalid expression--couldn't evaluate.")
-        }
+						leftOperand = leftOperand.Next()
 
-        if staging.Len() == 0 {
-          if len(r) == 0 {
-            return top[0].Front().Value.(Raw), nil
-          }
-          return out, errors.New("Invalid string--terminated early.")
-        }
-        staging.Front().Value.([2]*list.List)[0].PushBack(top[0].Front().Value)
+						top[0].Remove(leftOperand.Prev())
+						top[1].Remove(oper)
+					} else {
+						leftOperand = leftOperand.Next()
+					}
+				}
+			}
 
-      case "&":
-        staging.Front().Value.([2]*list.List)[1].PushBack(NodeAnd)
-      case "|":
-        staging.Front().Value.([2]*list.List)[1].PushBack(NodeOr)
-      default:
-        staging.Front().Value.([2]*list.List)[0].PushBack(nxt)
-    }
-  }
+			if top[0].Len() != 1 || top[1].Len() != 0 {
+				return out, errors.New("Invalid expression--couldn't evaluate.")
+			}
 
-  return out, errors.New("Invalid string--never terminated.")
+			if staging.Len() == 0 {
+				if len(r) == 0 {
+					return top[0].Front().Value.(Raw), nil
+				}
+				return out, errors.New("Invalid string--terminated early.")
+			}
+			staging.Front().Value.([2]*list.List)[0].PushBack(top[0].Front().Value)
+
+		case "&":
+			staging.Front().Value.([2]*list.List)[1].PushBack(NodeAnd)
+		case "|":
+			staging.Front().Value.([2]*list.List)[1].PushBack(NodeOr)
+		default:
+			staging.Front().Value.([2]*list.List)[0].PushBack(String(nxt))
+		}
+	}
+
+	return out, errors.New("Invalid string--never terminated.")
 }
 
 func (r Raw) String() string {
-  out := ""
+	out := ""
 
-  switch (*r.Left).(type) {
-  case String: out += string((*r.Left).(String))
-  default:     out += "(" + (*r.Left).(Raw).String() + ")"
-  }
+	switch (*r.Left).(type) {
+	case String:
+		out += string((*r.Left).(String))
+	default:
+		out += "(" + (*r.Left).(Raw).String() + ")"
+	}
 
-  if r.Type() == NodeAnd {
-    out += " & "
-  } else {
-    out += " | "
-  }
+	if r.Type() == NodeAnd {
+		out += " & "
+	} else {
+		out += " | "
+	}
 
-  switch (*r.Right).(type) {
-  case String: out += string((*r.Right).(String))
-  default:     out += "(" + (*r.Right).(Raw).String() + ")"
-  }
+	switch (*r.Right).(type) {
+	case String:
+		out += string((*r.Right).(String))
+	default:
+		out += "(" + (*r.Right).(Raw).String() + ")"
+	}
 
-  return out
+	return out
 }
 
+/*
+func (r Raw) Formatted() Formatted {
+
+}
+*/
+
 func (r Raw) Ok(db *UserDatabase) bool {
-  if r.Type() == NodeAnd {
-    return (*r.Left).Ok(db) && (*r.Right).Ok(db)
-  } else {
-    return (*r.Left).Ok(db) || (*r.Right).Ok(db)
-  }
+	if r.Type() == NodeAnd {
+		return (*r.Left).Ok(db) && (*r.Right).Ok(db)
+	} else {
+		return (*r.Left).Ok(db) || (*r.Right).Ok(db)
+	}
 }
