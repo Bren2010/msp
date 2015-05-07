@@ -45,9 +45,9 @@ func TestFormatted(t *testing.T) {
 		},
 	}
 
-	db := UserDatabase(Database(map[string][]byte{
-		"Alice": []byte("blah"),
-		"Carl":  []byte("herp"),
+	db := UserDatabase(Database(map[string][][]byte{
+		"Alice": [][]byte{[]byte("blah")},
+		"Carl":  [][]byte{[]byte("herp")},
 	}))
 
 	if query1.Ok(&db) != true {

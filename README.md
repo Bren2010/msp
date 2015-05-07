@@ -15,6 +15,10 @@ a user to a set will never turn the predicate's output from `true` to
 **Example:**  `(Alice or Bob) and Carl` is good, but `(Alice or Bob) and !Carl`
 is not because excluding people is rude.
 
+MSPs are fundamental and powerful primitives.  They're well-suited for
+distributed commitments (DC), verifiable secret sharing (VSS) and multi-party
+computation (MPC).
+
 
 #### Types of Predicates
 

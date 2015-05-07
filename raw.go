@@ -29,7 +29,7 @@ func StringToRaw(r string) (out Raw, err error) {
 	// infix notation.  Reads one long unbroken expression (several operators and
 	// operands with no parentheses) at a time and parses it into a binary
 	// expression tree (giving AND operators precedence).  Running time linear in
-  // the size of the predicate?
+	// the size of the predicate?
 	//
 	// Steps to the next (un)parenthesis.
 	//     (     -> Push new queue onto staging stack
@@ -37,10 +37,10 @@ func StringToRaw(r string) (out Raw, err error) {
 	//     )     -> Pop queue off top of staging stack, build BET, and push tree
 	//              onto the back of the top queue.
 	//
-  // To build the binary expression tree, for each type of operation we iterate
-  // through the (Condition, operator) lists compacting where that operation
-  // occurs into tree nodes.
-  //
+	// To build the binary expression tree, for each type of operation we iterate
+	// through the (Condition, operator) lists compacting where that operation
+	// occurs into tree nodes.
+	//
 	// Staging stack is empty on initialization and should have exactly 1 node
 	// (the root node) at the end of the string.
 	r = "(" + r + ")"
@@ -177,30 +177,30 @@ func (r Raw) String() string {
 }
 
 func (r Raw) Formatted() (out Formatted) {
-  // Recursively maps a raw predicate to a formatted predicate by mapping AND
-  // gates to (2, A, B) treshold gates and OR gates to (1, A, B) gates.
-  if r.Type() == NodeAnd {
-    out.Min = 2
-  } else {
-    out.Min = 1
-  }
+	// Recursively maps a raw predicate to a formatted predicate by mapping AND
+	// gates to (2, A, B) treshold gates and OR gates to (1, A, B) gates.
+	if r.Type() == NodeAnd {
+		out.Min = 2
+	} else {
+		out.Min = 1
+	}
 
-  switch (*r.Left).(type) {
-  case String:
-    out.Conds = []Condition{(*r.Left).(String)}
-  default:
-    out.Conds = []Condition{(*r.Left).(Raw).Formatted()}
-  }
+	switch (*r.Left).(type) {
+	case String:
+		out.Conds = []Condition{(*r.Left).(String)}
+	default:
+		out.Conds = []Condition{(*r.Left).(Raw).Formatted()}
+	}
 
-  switch (*r.Right).(type) {
-  case String:
-    out.Conds = append(out.Conds, (*r.Right).(String))
-  default:
-    out.Conds = append(out.Conds, (*r.Right).(Raw).Formatted())
-  }
+	switch (*r.Right).(type) {
+	case String:
+		out.Conds = append(out.Conds, (*r.Right).(String))
+	default:
+		out.Conds = append(out.Conds, (*r.Right).(Raw).Formatted())
+	}
 
-  out.Compress() // Small amount of predicate compression.
-  return
+	out.Compress() // Small amount of predicate compression.
+	return
 }
 
 func (r Raw) Ok(db *UserDatabase) bool {

@@ -27,9 +27,9 @@ func TestRaw(t *testing.T) {
 		Right:    &carl,
 	}
 
-	db := UserDatabase(Database(map[string][]byte{
-		"Alice": []byte("blah"),
-		"Carl":  []byte("herp"),
+	db := UserDatabase(Database(map[string][][]byte{
+		"Alice": [][]byte{[]byte("blah")},
+		"Carl":  [][]byte{[]byte("herp")},
 	}))
 
 	if query1.Ok(&db) != false {
@@ -51,24 +51,24 @@ func TestRaw(t *testing.T) {
 		t.Fatalf("Query #2 String was wrong; %v", query2.String())
 	}
 
-  decQuery1, err := StringToRaw(query1String)
-  if err != nil || decQuery1.String() != query1String {
-    t.Fatalf("Query #1 decoded wrong: %v %v", decQuery1.String(), err)
-  }
+	decQuery1, err := StringToRaw(query1String)
+	if err != nil || decQuery1.String() != query1String {
+		t.Fatalf("Query #1 decoded wrong: %v %v", decQuery1.String(), err)
+	}
 
-  decQuery2, err := StringToRaw(query2String)
-  if err != nil || decQuery2.String() != query2String {
-    t.Fatalf("Query #2 decoded wrong: %v %v", decQuery2.String(), err)
-  }
+	decQuery2, err := StringToRaw(query2String)
+	if err != nil || decQuery2.String() != query2String {
+		t.Fatalf("Query #2 decoded wrong: %v %v", decQuery2.String(), err)
+	}
 
-  formattedQuery1String := "(2, Alice, Bob)"
+	formattedQuery1String := "(2, Alice, Bob)"
 	formattedQuery2String := "(2, (1, Alice, Bob), Carl)"
 
-  if query1.Formatted().String() != formattedQuery1String {
-    t.Fatalf("Query #1 formatted wrong: %v", query1.Formatted().String())
-  }
+	if query1.Formatted().String() != formattedQuery1String {
+		t.Fatalf("Query #1 formatted wrong: %v", query1.Formatted().String())
+	}
 
-  if query2.Formatted().String() != formattedQuery2String {
-    t.Fatalf("Query #2 formatted wrong: %v", query2.Formatted().String())
-  }
+	if query2.Formatted().String() != formattedQuery2String {
+		t.Fatalf("Query #2 formatted wrong: %v", query2.Formatted().String())
+	}
 }
