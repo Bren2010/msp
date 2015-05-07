@@ -1,6 +1,13 @@
 Monotone Span Programs
 ======================
 
+- [Introduction](#monotone-span-programs)
+  - [Types of Predicates](#types-of-predicates)
+- [Documentation](#documentation)
+  - [User Databases](#user-databases)
+  - [Building Predicates](#building-predicates)
+  - [Splitting & Reconstructing Secrets](#splitting--reconstructing-secrets)
+
 A *Monotone Span Program* (or *MSP*) is a cryptographic technique for splitting
 a secret into several *shares* that are then distributed to *parties* or
 *users*.  (Have you heard of [Shamir's Secret Sharing](http://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing)?  It's like that.)
@@ -39,3 +46,67 @@ the fundamental operations of splitting secrets with an MSP), but circuit
 minimization is a non-trivial and computationally complex problem.  The code can
 do a small amount of compression, but the onus is on the user to design
 efficiently computable predicates.
+
+
+Documentation
+-------------
+
+### User Databases
+
+```go
+type UserDatabase interface {
+	Users() []string // Exhaustive list of party names.
+	CanGetShare(string) bool // Determines if its possible to get a party's shares.
+	GetShare(string) ([][]byte, error) // Retrieves a party's shares.
+}
+```
+
+User databases are an abstraction over the primitive name -> share map that hopefully offer a bit more flexibility in implementing secret sharing schemes.  `CanGetShare(name)` should be faster and less binding than `GetShare(name)`.  `CanGetShare(name)` may be called a large number of times, but `GetShare(name)` will only be called the smallest number of times possible.
+
+Depending on the predicate used, a name may be associated to multiple shares of a secret, hence `[][]byte` as opposed to one share (`[]byte`).
+
+For test/play purposes there's a cheaty implementation of `UserDatabase` in `msp_test.go` that just wraps the `map[string][][]byte` returned by `DistributeShares(...)`
+
+### Building Predicates
+
+```go
+type Raw struct { ... }
+
+func StringToRaw(string) (Raw, error) { ... }
+func (r Raw) String() string { .. .}
+func (r Raw) Formatted() Formatted { ... }
+
+
+type Formatted struct { ... }
+
+func StringToFormatted(string) (Formatted, error)
+func (f Formatted) String() string
+```
+
+Building predicates is extremely easy--just write it out in a string and have one of the package methods parse it.
+
+Raw predicates take the `&` (logical AND) and `|` (logical OR) operators, but are otherwise the same as discussed above.  Formatted predicates are exactly the same as above--just nested threshold gates.
+
+```go
+r1, _ := msp.StringToRaw("(Alice | Bob) & Carl")
+r2, _ := msp.StringToRaw("Alice & Bob & Carl")
+
+fmt.Printf("%v\n", r1.Formatted()) // (2, (1, Alice, Bob), Carl)
+fmt.Printf("%v\n", r2.Formatted()) // (3, Alice, Bob, Carl)
+```
+
+### Splitting & Reconstructing Secrets
+
+```go
+type MSP Formatted
+
+func Modulus(n int) *big.Int {}
+func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (map[string][][]byte, error) {}
+func (m MSP) RecoverSecret(modulus *big.Int, db *UserDatabase) ([]byte, error) {}
+```
+
+To switch from predicate-mode to secret-sharing-mode, just cast your formatted predicate into an MSP something like this:  ```go msp.MSP(predicate)```
+
+Calling `DistributeShares` on it returns a map from a party's name to their set of shares which should be given to that party and integrated into the `UserDatabase` somehow.  When you're ready to reconstruct the secret, you call `RecoverSecret`, which does some prodding about and hopefully gives you back what you put in.
+
+The modulus determines the size of the secret shares.  It must be prime, larger than the secret, and larger than n<sup>k</sup> where `n` is the number of parties and `k` is the size of the largest threshold gate.  Because this form of secret sharing is *information theoretically secure*, as long as the modulus satisfies those requirements, it can be as small or as large as you'd like.  An excessively small modulus is restrictive, but saves a *lot* of bandwidth.  However, there's no sensible reason for a modulus over about 256 bits--by that point it's easier to generate a random AES key, encrypt your secret with *that*, and distribute shares of the decryption key instead.
