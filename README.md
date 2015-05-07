@@ -105,8 +105,14 @@ func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (m
 func (m MSP) RecoverSecret(modulus *big.Int, db *UserDatabase) ([]byte, error) {}
 ```
 
-To switch from predicate-mode to secret-sharing-mode, just cast your formatted predicate into an MSP something like this:  ```go msp.MSP(predicate)```
+To switch from predicate-mode to secret-sharing-mode, just cast your formatted predicate into an MSP something like this:
+```go
+predicate := msp.StringToFormatted("(3, Alice, Bob, Carl)")
+sss := msp.MSP(predicate)
+```
 
 Calling `DistributeShares` on it returns a map from a party's name to their set of shares which should be given to that party and integrated into the `UserDatabase` somehow.  When you're ready to reconstruct the secret, you call `RecoverSecret`, which does some prodding about and hopefully gives you back what you put in.
 
 The modulus determines the size of the secret shares.  It must be prime, larger than the secret, and larger than n<sup>k</sup> where `n` is the number of parties and `k` is the size of the largest threshold gate.  Because this form of secret sharing is *information theoretically secure*, as long as the modulus satisfies those requirements, it can be as small or as large as you'd like.  An excessively small modulus is restrictive, but saves a *lot* of bandwidth.  However, there's no sensible reason for a modulus over about 256 bits--by that point it's easier to generate a random AES key, encrypt your secret with *that*, and distribute shares of the decryption key instead.
+
+For convienence, the `Modulus` function has some hard coded moduli that are useful.  The choices are currently: `127`, `224` for a 127-bit or 224-bit modulus, respectively.
