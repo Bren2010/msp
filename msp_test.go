@@ -1,10 +1,11 @@
 package msp
 
 import (
+	"bytes"
+	"crypto/rand"
 	"errors"
 	"testing"
-	"crypto/rand"
-	"bytes"
+	"fmt"
 )
 
 type Database map[string][][]byte
@@ -43,17 +44,17 @@ func TestMSP(t *testing.T) {
 	rand.Read(sec)
 	sec[0] &= 63 // Removes first 2 bits of key.
 
-	pred, _   := StringToFormatted("(2, (1, Alice, Bob), Carl)")
+	pred, _ := StringToFormatted("(2, (1, Alice, Bob), Carl)")
 	predicate := MSP(pred)
 
 	shares1, _ := predicate.DistributeShares(sec, Modulus(127), &db)
 	shares2, _ := predicate.DistributeShares(sec, Modulus(127), &db)
 
 	alice := bytes.Compare(shares1["Alice"][0], shares2["Alice"][0])
-	bob   := bytes.Compare(shares1["Bob"][0], shares2["Bob"][0])
-	carl  := bytes.Compare(shares1["Carl"][0], shares2["Carl"][0])
+	bob := bytes.Compare(shares1["Bob"][0], shares2["Bob"][0])
+	carl := bytes.Compare(shares1["Carl"][0], shares2["Carl"][0])
 
-	if alice == 0 && bob == 0 && carl == 0  {
+	if alice == 0 && bob == 0 && carl == 0 {
 		t.Fatalf("Key splitting isn't random! %v %v", shares1, shares2)
 	}
 
@@ -73,4 +74,15 @@ func TestMSP(t *testing.T) {
 	if !(bytes.Compare(sec, sec1) == 0 && bytes.Compare(sec, sec2) == 0) {
 		t.Fatalf("Secrets derived differed:  %v %v %v", sec, sec1, sec2)
 	}
+
+	p, _ := StringToRaw("(Alice | Bob) & Carl & Alice")
+	q := MSP(p.Formatted())
+	fmt.Println(q.Conds)
+	fmt.Println(q.Conds[0].(Formatted).Conds)
+	fmt.Println(q.Conds[0].(Formatted).Conds[0].(Formatted).Conds)
+	s, _ := q.DistributeShares(sec, Modulus(127), &db)
+	fmt.Println(sec)
+	fmt.Println(s)
+	d := UserDatabase(Database(s))
+	fmt.Println(q.RecoverSecret(Modulus(127), &d))
 }

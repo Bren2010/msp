@@ -85,6 +85,7 @@ func StringToRaw(r string) (out Raw, err error) {
 	}
 
 	staging := list.New() // Stack of (Condition list, operator list)
+	indices := make(map[string]int, 0)
 
 	var nxt string
 	for len(r) > 0 {
@@ -143,7 +144,12 @@ func StringToRaw(r string) (out Raw, err error) {
 		case "|":
 			staging.Front().Value.([2]*list.List)[1].PushBack(NodeOr)
 		default:
-			staging.Front().Value.([2]*list.List)[0].PushBack(String(nxt))
+			if _, there := indices[nxt]; !there {
+				indices[nxt] = 0
+			}
+
+			staging.Front().Value.([2]*list.List)[0].PushBack(String{nxt, indices[nxt]})
+			indices[nxt]++
 		}
 	}
 
@@ -155,7 +161,7 @@ func (r Raw) String() string {
 
 	switch (*r.Left).(type) {
 	case String:
-		out += string((*r.Left).(String))
+		out += (*r.Left).(String).string
 	default:
 		out += "(" + (*r.Left).(Raw).String() + ")"
 	}
@@ -168,7 +174,7 @@ func (r Raw) String() string {
 
 	switch (*r.Right).(type) {
 	case String:
-		out += string((*r.Right).(String))
+		out += (*r.Right).(String).string
 	default:
 		out += "(" + (*r.Right).(Raw).String() + ")"
 	}
@@ -199,7 +205,7 @@ func (r Raw) Formatted() (out Formatted) {
 		out.Conds = append(out.Conds, (*r.Right).(Raw).Formatted())
 	}
 
-	out.Compress() // Small amount of predicate compression.
+	// out.Compress() // Small amount of predicate compression.
 	return
 }
 

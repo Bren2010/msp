@@ -1,9 +1,11 @@
 package msp
 
 import (
+	"container/heap"
 	"crypto/rand"
 	"errors"
 	"math/big"
+	"fmt"
 )
 
 // A UserDatabase is an abstraction over the name -> share map returned by the
@@ -19,10 +21,44 @@ type Condition interface { // Represents one condition in a predicate
 	Ok(*UserDatabase) bool
 }
 
-type String string // Type of condition
+type String struct { // Type of condition
+	string
+	index int
+}
 
 func (s String) Ok(db *UserDatabase) bool {
-	return (*db).CanGetShare(string(s))
+	return (*db).CanGetShare(s.string)
+}
+
+type TraceElem struct {
+	loc   int
+	trace []string
+}
+
+type TraceSlice []TraceElem
+
+func (ts TraceSlice) Len() int      { return len(ts) }
+func (ts TraceSlice) Swap(i, j int) { ts[i], ts[j] = ts[j], ts[i] }
+
+func (ts TraceSlice) Less(i, j int) bool {
+	return len(ts[i].trace) < len(ts[j].trace)
+}
+
+func (ts *TraceSlice) Push(te interface{}) { *ts = append(*ts, te.(TraceElem)) }
+func (ts *TraceSlice) Pop() interface{} {
+	out := (*ts)[0]
+	*ts = (*ts)[1 : len(*ts)-1]
+
+	return out
+}
+
+func (ts TraceSlice) Compact() (index []int, trace []string) {
+	for _, te := range ts {
+		index = append(index, te.loc)
+		trace = append(trace, te.trace...)
+	}
+
+	return
 }
 
 type MSP Formatted
@@ -44,6 +80,36 @@ func Modulus(n int) (modulus *big.Int) {
 	return
 }
 
+func (m MSP) DerivePath(db *UserDatabase) (ok bool, names []string, locs []int, trace []string) {
+	ts := &TraceSlice{}
+
+	for i, cond := range m.Conds {
+		switch cond.(type) {
+		case String:
+			if (*db).CanGetShare(cond.(String).string) {
+				heap.Push(ts, TraceElem{i, []string{cond.(String).string}})
+				names = append(names, cond.(String).string)
+			}
+
+		case Formatted:
+			sok, _, _, strace := MSP(cond.(Formatted)).DerivePath(db)
+			if !sok {
+				continue
+			}
+
+			heap.Push(ts, TraceElem{i, strace})
+		}
+
+		if (*ts).Len() > m.Min {
+			*ts = (*ts)[0:m.Min]
+		}
+	}
+
+	ok = (*ts).Len() >= m.Min
+	locs, trace = ts.Compact()
+	return
+}
+
 func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (map[string][][]byte, error) {
 	// Initialize user -> shares map.
 	users := (*db).Users()
@@ -59,7 +125,7 @@ func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (m
 
 	var junk []*big.Int // Generate junk numbers.
 	for i := 1; i < m.Min; i++ {
-		r := make([]byte, (modulus.BitLen()/8) + 1)
+		r := make([]byte, (modulus.BitLen()/8)+1)
 		_, err := rand.Read(r)
 		if err != nil {
 			return out, err
@@ -85,7 +151,7 @@ func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (m
 
 		switch cond.(type) {
 		case String:
-			name := string(cond.(String))
+			name := cond.(String).string
 			out[name] = append(out[name], share.Bytes())
 
 		default:
@@ -105,55 +171,49 @@ func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (m
 }
 
 func (m MSP) RecoverSecret(modulus *big.Int, db *UserDatabase) ([]byte, error) {
-	var (
-		cache = make(map[string][][]byte, 0) // Caches un-used shares for a user.
+	cache := make(map[string][][]byte, 0) // Caches un-used shares for a user.
+	return m.recoverSecret(modulus, db, cache)
+}
 
+func (m MSP) recoverSecret(modulus *big.Int, db *UserDatabase, cache map[string][][]byte) ([]byte, error) {
+	var (
 		index  = []int{}    // Indexes where given shares were in the matrix.
 		shares = [][]byte{} // Contains shares that will be used in reconstruction.
 	)
 
-	for i, cond := range m.Conds { // Rewrite to prefer paths of smaller weight.
-		if len(index) >= m.Min {
-			continue
-		}
+	ok, names, locs, trace := m.DerivePath(db)
+	fmt.Println(ok, names, locs, trace)
+	if !ok {
+		return nil, errors.New("Not enough shares to recover.")
+	}
 
-		switch cond.(type) {
-		case String:
-			name := string(cond.(String))
-
-			if c, ok := cache[name]; ok && len(c) > 0 {
-				share := cache[name][0]
-				cache[name] = cache[name][1:]
-
-				index = append(index, i+1)
-				shares = append(shares, share)
-			} else if (*db).CanGetShare(name) {
-				out, err := (*db).GetShare(name)
-				if err != nil {
-					continue
-				}
-
-				if len(out) > 1 {
-					cache[name] = out[1:]
-				}
-
-				index = append(index, i+1)
-				shares = append(shares, out[0])
-			}
-
-		default:
-			share, err := MSP(cond.(Formatted)).RecoverSecret(modulus, db)
+	for _, name := range names {
+		if _, cached := cache[name]; !cached {
+			out, err := (*db).GetShare(name)
 			if err != nil {
-				continue
+				return nil, err
 			}
 
-			index = append(index, i+1)
-			shares = append(shares, share)
+			cache[name] = out
 		}
 	}
 
-	if len(index) < m.Min {
-		return nil, errors.New("Not enough shares to recover.")
+	for _, loc := range locs {
+		gate := m.Conds[loc]
+		index = append(index, loc+1)
+
+		switch gate.(type) {
+		case String:
+			shares = append(shares, cache[gate.(String).string][gate.(String).index])
+
+		case Formatted:
+			share, err := MSP(gate.(Formatted)).recoverSecret(modulus, db, cache)
+			if err != nil {
+				return nil, err
+			}
+
+			shares = append(shares, share)
+		}
 	}
 
 	// Calculate the reconstruction vector.  We only need the top row of the
@@ -170,7 +230,7 @@ func (m MSP) RecoverSecret(modulus *big.Int, db *UserDatabase) ([]byte, error) {
 		row := [][2]int{}
 
 		for k, idx := range index {
-			row = append(row, [2]int{idx * matrix[j-1][k][0], matrix[j-1][k][1]})
+			row = append(row, [2]int{int(idx) * matrix[j-1][k][0], matrix[j-1][k][1]})
 		}
 
 		matrix = append(matrix, row)
