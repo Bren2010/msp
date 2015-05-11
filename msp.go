@@ -18,7 +18,7 @@ type UserDatabase interface {
 }
 
 type Condition interface { // Represents one condition in a predicate
-	Ok(*UserDatabase) (bool, []string)
+	Ok(*UserDatabase) bool
 }
 
 type String struct { // Type of condition
@@ -32,6 +32,7 @@ func (s String) Ok(db *UserDatabase) bool {
 
 type TraceElem struct {
 	loc   int
+	names []string
 	trace []string
 }
 
@@ -52,9 +53,10 @@ func (ts *TraceSlice) Pop() interface{} {
 	return out
 }
 
-func (ts TraceSlice) Compact() (index []int, trace []string) {
+func (ts TraceSlice) Compact() (index []int, names []string, trace []string) {
 	for _, te := range ts {
 		index = append(index, te.loc)
+		names = append(names, te.names...)
 		trace = append(trace, te.trace...)
 	}
 
@@ -95,8 +97,11 @@ func (m MSP) DerivePath(db *UserDatabase) (ok bool, names []string, locs []int, 
 		switch cond.(type) {
 		case String:
 			if (*db).CanGetShare(cond.(String).string) {
-				heap.Push(ts, TraceElem{i, []string{cond.(String).string}})
-				names = append(names, cond.(String).string)
+				heap.Push(ts, TraceElem{
+					i,
+					[]string{cond.(String).string},
+					[]string{cond.(String).string},
+				})
 			}
 
 		case Formatted:
@@ -105,7 +110,7 @@ func (m MSP) DerivePath(db *UserDatabase) (ok bool, names []string, locs []int, 
 				continue
 			}
 
-			heap.Push(ts, TraceElem{i, strace})
+			heap.Push(ts, TraceElem{i, []string{}, strace})
 		}
 
 		if (*ts).Len() > m.Min {
@@ -114,7 +119,7 @@ func (m MSP) DerivePath(db *UserDatabase) (ok bool, names []string, locs []int, 
 	}
 
 	ok = (*ts).Len() >= m.Min
-	locs, trace = ts.Compact()
+	locs, names, trace = ts.Compact()
 	return
 }
 

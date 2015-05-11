@@ -76,10 +76,11 @@ func TestMSP(t *testing.T) {
 	}
 
 	p, _ := StringToRaw("(Alice | Bob) & Carl & Alice")
+	//p, _ := StringToFormatted("(3, (1, Alice, Bob), Carl, Alice)")
 	q := MSP(p.Formatted())
-	fmt.Println(q.Conds)
-	fmt.Println(q.Conds[0].(Formatted).Conds)
-	fmt.Println(q.Conds[0].(Formatted).Conds[0].(Formatted).Conds)
+	//fmt.Println(q.Conds)
+	//fmt.Println(q.Conds[0].(Formatted).Conds)
+	//fmt.Println(q.Conds[0].(Formatted).Conds[0].(Formatted).Conds)
 	s, _ := q.DistributeShares(sec, Modulus(127), &db)
 	fmt.Println(sec)
 	fmt.Println(s)
