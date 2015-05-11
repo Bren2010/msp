@@ -18,7 +18,7 @@ type UserDatabase interface {
 }
 
 type Condition interface { // Represents one condition in a predicate
-	Ok(*UserDatabase) bool
+	Ok(*UserDatabase) (bool, []string)
 }
 
 type String struct { // Type of condition
@@ -65,6 +65,14 @@ type MSP Formatted
 
 func Modulus(n int) (modulus *big.Int) {
 	switch n {
+	case 256:
+		modulus = big.NewInt(1) // 2^256 - 2^224 + 2^192 + 2^96 - 1
+		modulus.Lsh(modulus, 256)
+		modulus.Sub(modulus, big.NewInt(0).Lsh(big.NewInt(1), 224))
+		modulus.Add(modulus, big.NewInt(0).Lsh(big.NewInt(1), 192))
+		modulus.Add(modulus, big.NewInt(0).Lsh(big.NewInt(1),  96))
+		modulus.Sub(modulus, big.NewInt(1))
+
 	case 224:
 		modulus = big.NewInt(1) // 2^224 - 2^96 + 1
 		modulus.Lsh(modulus, 224)
