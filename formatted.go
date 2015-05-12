@@ -151,10 +151,8 @@ func (f *Formatted) Compress() {
 
 				if cond.Min == len(cond.Conds) {
 					f.Min += cond.Min - 1
-					f.Conds = append(
-						append(f.Conds[0:i], f.Conds[i+1:]...),
-						cond.Conds...,
-					)
+					f.Conds = append(f.Conds[0:i],
+						append(cond.Conds, f.Conds[i+1:]...)...)
 				}
 			}
 		}
@@ -168,10 +166,8 @@ func (f *Formatted) Compress() {
 				f.Conds[i] = cond
 
 				if cond.Min == 1 {
-					f.Conds = append(
-						append(f.Conds[0:i], f.Conds[i+1:]...),
-						cond.Conds...,
-					)
+					f.Conds = append(f.Conds[0:i],
+						append(cond.Conds, f.Conds[i+1:]...)...)
 				}
 			}
 		}

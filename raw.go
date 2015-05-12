@@ -205,7 +205,7 @@ func (r Raw) Formatted() (out Formatted) {
 		out.Conds = append(out.Conds, (*r.Right).(Raw).Formatted())
 	}
 
-	// out.Compress() // Small amount of predicate compression.
+	out.Compress() // Small amount of predicate compression.
 	return
 }
 
