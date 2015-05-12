@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"testing"
-	"fmt"
 )
 
 type Database map[string][][]byte
@@ -74,16 +73,4 @@ func TestMSP(t *testing.T) {
 	if !(bytes.Compare(sec, sec1) == 0 && bytes.Compare(sec, sec2) == 0) {
 		t.Fatalf("Secrets derived differed:  %v %v %v", sec, sec1, sec2)
 	}
-
-	p, _ := StringToRaw("(Alice | Bob) & Carl & Alice")
-	//p, _ := StringToFormatted("(3, (1, Alice, Bob), Carl, Alice)")
-	q := MSP(p.Formatted())
-	//fmt.Println(q.Conds)
-	//fmt.Println(q.Conds[0].(Formatted).Conds)
-	//fmt.Println(q.Conds[0].(Formatted).Conds[0].(Formatted).Conds)
-	s, _ := q.DistributeShares(sec, Modulus(127), &db)
-	fmt.Println(sec)
-	fmt.Println(s)
-	d := UserDatabase(Database(s))
-	fmt.Println(q.RecoverSecret(Modulus(127), &d))
 }

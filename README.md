@@ -48,6 +48,14 @@ do a small amount of compression, but the onus is on the user to design
 efficiently computable predicates.
 
 
+#### To Do
+
+1. Raw -> Formatted messes up index
+2. Make trace unique
+3. Anonymous secret generation
+4. Non-interactive verifiable secret sharing
+
+
 Documentation
 -------------
 

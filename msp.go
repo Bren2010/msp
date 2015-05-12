@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"math/big"
-	"fmt"
 )
 
 // A UserDatabase is an abstraction over the name -> share map returned by the
@@ -72,7 +71,7 @@ func Modulus(n int) (modulus *big.Int) {
 		modulus.Lsh(modulus, 256)
 		modulus.Sub(modulus, big.NewInt(0).Lsh(big.NewInt(1), 224))
 		modulus.Add(modulus, big.NewInt(0).Lsh(big.NewInt(1), 192))
-		modulus.Add(modulus, big.NewInt(0).Lsh(big.NewInt(1),  96))
+		modulus.Add(modulus, big.NewInt(0).Lsh(big.NewInt(1), 96))
 		modulus.Sub(modulus, big.NewInt(1))
 
 	case 224:
@@ -194,8 +193,7 @@ func (m MSP) recoverSecret(modulus *big.Int, db *UserDatabase, cache map[string]
 		shares = [][]byte{} // Contains shares that will be used in reconstruction.
 	)
 
-	ok, names, locs, trace := m.DerivePath(db)
-	fmt.Println(ok, names, locs, trace)
+	ok, names, locs, _ := m.DerivePath(db)
 	if !ok {
 		return nil, errors.New("Not enough shares to recover.")
 	}
@@ -217,6 +215,10 @@ func (m MSP) recoverSecret(modulus *big.Int, db *UserDatabase, cache map[string]
 
 		switch gate.(type) {
 		case String:
+			if len(cache[gate.(String).string]) <= gate.(String).index {
+				return nil, errors.New("Predicate / database mismatch!")
+			}
+
 			shares = append(shares, cache[gate.(String).string][gate.(String).index])
 
 		case Formatted:
@@ -297,16 +299,20 @@ func (m MSP) recoverSecret(modulus *big.Int, db *UserDatabase, cache map[string]
 
 	// Compute dot product of the shares vector and the reconstruction vector to
 	// reconstruct the secret.
+	size := len(modulus.Bytes())
+	out := make([]byte, size)
 	secInt := big.NewInt(0)
 
 	for i, share := range shares {
 		lst := len(matrix[i]) - 1
 
-		coeff := big.NewInt(0).ModInverse(
-			big.NewInt(int64(matrix[i][lst][1])),
-			modulus,
-		)
-		coeff.Mul(coeff, big.NewInt(int64(matrix[i][lst][0])))
+		num := big.NewInt(int64(matrix[i][lst][0]))
+		den := big.NewInt(int64(matrix[i][lst][1]))
+		num.Mod(num, modulus)
+		den.Mod(den, modulus)
+
+		coeff := big.NewInt(0).ModInverse(den, modulus)
+		coeff.Mul(coeff, num).Mod(coeff, modulus)
 
 		shareInt := big.NewInt(0).SetBytes(share)
 		shareInt.Mul(shareInt, coeff).Mod(shareInt, modulus)
@@ -314,5 +320,6 @@ func (m MSP) recoverSecret(modulus *big.Int, db *UserDatabase, cache map[string]
 		secInt.Add(secInt, shareInt).Mod(secInt, modulus)
 	}
 
-	return secInt.Bytes(), nil
+	out = append(out, secInt.Bytes()...)
+	return out[len(out)-size:], nil
 }
