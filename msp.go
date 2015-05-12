@@ -5,7 +5,6 @@ import (
 	"crypto/rand"
 	"errors"
 	"math/big"
-	"fmt"
 )
 
 // A UserDatabase is an abstraction over the name -> share map returned by the
@@ -60,18 +59,22 @@ func (ts TraceSlice) Compact() (index []int, names []string, trace []string) {
 		trace = append(trace, te.trace...)
 	}
 
-	ptr, cutoff := 0, len(trace) - 1
+	ptr, cutoff := 0, len(trace)
+
+	TopLoop:
 	for ptr < cutoff {
 		for i := 0; i < ptr; i++ {
 			if trace[i] == trace[ptr] {
-				trace[ptr], trace[cutoff] = trace[cutoff], trace[ptr]
+				trace[ptr], trace[cutoff - 1] = trace[cutoff - 1], trace[ptr]
 				cutoff--
-				continue
+
+				continue TopLoop
 			}
 		}
 
 		ptr++
 	}
+	trace = trace[0:cutoff]
 
 	return
 }
@@ -207,8 +210,7 @@ func (m MSP) recoverSecret(modulus *big.Int, db *UserDatabase, cache map[string]
 		shares = [][]byte{} // Contains shares that will be used in reconstruction.
 	)
 
-	ok, names, locs, trace := m.DerivePath(db)
-	fmt.Println(ok, names, locs, trace)
+	ok, names, locs, _ := m.DerivePath(db)
 	if !ok {
 		return nil, errors.New("Not enough shares to recover.")
 	}
