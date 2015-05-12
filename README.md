@@ -12,7 +12,7 @@ A *Monotone Span Program* (or *MSP*) is a cryptographic technique for splitting
 a secret into several *shares* that are then distributed to *parties* or
 *users*.  (Have you heard of [Shamir's Secret Sharing](http://en.wikipedia.org/wiki/Shamir%27s_Secret_Sharing)?  It's like that.)
 
-Unlike Sharmir's Secret Sharing, MSPs allow *arbitrary monotone access
+Unlike Shamir's Secret Sharing, MSPs allow *arbitrary monotone access
 structures*.  An access structure is just a boolean predicate on a set of users
 that tells us whether or not that set is allowed to recover the secret.  A
 monotone access structure is the same thing, but with the invariant that adding
@@ -50,10 +50,8 @@ efficiently computable predicates.
 
 #### To Do
 
-1. Raw -> Formatted messes up index
-2. Make trace unique
-3. Anonymous secret generation
-4. Non-interactive verifiable secret sharing
+1. Anonymous secret generation / secret homomorphisms
+2. Non-interactive verifiable secret sharing / distributed commitments
 
 
 Documentation
@@ -73,7 +71,7 @@ User databases are an abstraction over the primitive name -> share map that
 hopefully offer a bit more flexibility in implementing secret sharing schemes.
 `CanGetShare(name)` should be faster and less binding than `GetShare(name)`.
 `CanGetShare(name)` may be called a large number of times, but `GetShare(name)`
-will only be called the smallest number of times possible.
+will be called the absolute minimum number of times possible.
 
 Depending on the predicate used, a name may be associated to multiple shares of
 a secret, hence `[][]byte` as opposed to one share (`[]byte`).
@@ -138,14 +136,18 @@ what you put in.
 
 The modulus determines the size of the secret shares.  It must be prime, larger
 than the secret, and larger than n<sup>k</sup> where `n` is the number of
-parties and `k` is the size of the largest threshold gate.  Because this form of
-secret sharing is *information theoretically secure*, as long as the modulus
-satisfies those requirements, it can be as small or as large as you'd like.  An
-excessively small modulus is restrictive, but saves a *lot* of bandwidth.
-However, there's no sensible reason for a modulus over about 256 bits--by that
-point it's easier to generate a random AES key, encrypt your secret with *that*,
-and distribute shares of the decryption key instead.
+parties and `k` is the depth of the circuit.  (For each path from the root to a
+gate with only leaf nodes, sum the thresholds of all the gates along that path.
+`k` is the maximum of these values--a safe overestimation is to sum the
+thresholds of all gates in the circuit)  Because this form of secret sharing
+is *information-theoretically secure*, as long as the modulus satisfies those
+requirements, it can be as small or as large as you'd like (there's no
+bonus/reduction in security).  An excessively small modulus is restrictive, but
+saves a *lot* of bandwidth.  However, there's no sensible reason for a modulus
+over about 256 bits--by that point, it's easier to generate a random AES key,
+encrypt your secret with *that*, and distribute shares of the decryption key
+instead.
 
-For convienence, the `Modulus` function has some hard coded moduli that are
-useful.  The choices are currently: `127`, `224` for a 127-bit or 224-bit
-modulus, respectively.
+For convenience, the `Modulus` function has some hard coded moduli that are
+useful.  The choices are currently: `127`, `224`, and `256` for a 127-bit,
+224-bit, or 256-bit modulus, respectively.
