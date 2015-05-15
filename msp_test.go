@@ -43,8 +43,7 @@ func TestMSP(t *testing.T) {
 	rand.Read(sec)
 	sec[0] &= 63 // Removes first 2 bits of key.
 
-	pred, _ := StringToFormatted("(2, (1, Alice, Bob), Carl)")
-	predicate := MSP(pred)
+	predicate, _ := StringToMSP("(2, (1, Alice, Bob), Carl)")
 
 	shares1, _ := predicate.DistributeShares(sec, Modulus(127), &db)
 	shares2, _ := predicate.DistributeShares(sec, Modulus(127), &db)

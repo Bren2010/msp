@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"errors"
 	"math/big"
+	"strings"
 )
 
 // A UserDatabase is an abstraction over the name -> share map returned by the
@@ -104,6 +105,27 @@ func Modulus(n int) (modulus *big.Int) {
 	}
 
 	return
+}
+
+func StringToMSP(pred string) (m MSP, err error) {
+	var f Formatted
+
+	if -1 == strings.Index(pred, ",") {
+		var r Raw
+		r, err = StringToRaw(pred)
+		if err != nil {
+			return
+		}
+
+		f = r.Formatted()
+	} else {
+		f, err = StringToFormatted(pred)
+		if err != nil {
+			return
+		}
+	}
+
+	return MSP(f), nil
 }
 
 func (m MSP) DerivePath(db *UserDatabase) (ok bool, names []string, locs []int, trace []string) {
