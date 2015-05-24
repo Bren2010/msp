@@ -202,7 +202,7 @@ func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (m
 			} else if ((*db).ValidUser(name)) {
 				out[name] = [][]byte{share.Bytes()}
 			} else {
-				return "Unknown user in predicate."
+				return out, "Unknown user in predicate."
 			}
 
 
