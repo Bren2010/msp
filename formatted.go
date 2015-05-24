@@ -142,7 +142,13 @@ func (f Formatted) Ok(db *UserDatabase) bool {
 func (f *Formatted) Compress() {
 	if f.Min == len(f.Conds) {
 		// AND Compression:  (n, ..., (m, ...), ...) = (n + m, ...)
+		skip := 0
 		for i, cond := range f.Conds {
+			if skip > 0 {
+				skip--
+				continue
+			}
+
 			switch cond.(type) {
 			case Formatted:
 				cond := cond.(Formatted)
@@ -153,12 +159,19 @@ func (f *Formatted) Compress() {
 					f.Min += cond.Min - 1
 					f.Conds = append(f.Conds[0:i],
 						append(cond.Conds, f.Conds[i+1:]...)...)
+					skip = len(cond.Conds) - 1
 				}
 			}
 		}
 	} else if f.Min == 1 {
 		// OR Compression: (1, ..., (1, ...), ...) = (1, ...)
+		skip := 0
 		for i, cond := range f.Conds {
+			if skip > 0 {
+				skip--
+				continue
+			}
+
 			switch cond.(type) {
 			case Formatted:
 				cond := cond.(Formatted)
@@ -168,6 +181,7 @@ func (f *Formatted) Compress() {
 				if cond.Min == 1 {
 					f.Conds = append(f.Conds[0:i],
 						append(cond.Conds, f.Conds[i+1:]...)...)
+					skip = len(cond.Conds) - 1
 				}
 			}
 		}
