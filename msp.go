@@ -62,11 +62,11 @@ func (ts TraceSlice) Compact() (index []int, names []string, trace []string) {
 
 	ptr, cutoff := 0, len(trace)
 
-	TopLoop:
+TopLoop:
 	for ptr < cutoff {
 		for i := 0; i < ptr; i++ {
 			if trace[i] == trace[ptr] {
-				trace[ptr], trace[cutoff - 1] = trace[cutoff - 1], trace[ptr]
+				trace[ptr], trace[cutoff-1] = trace[cutoff-1], trace[ptr]
 				cutoff--
 
 				continue TopLoop
@@ -199,12 +199,11 @@ func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (m
 			name := cond.(String).string
 			if _, ok := out[name]; ok {
 				out[name] = append(out[name], share.Bytes())
-			} else if ((*db).ValidUser(name)) {
+			} else if (*db).ValidUser(name) {
 				out[name] = [][]byte{share.Bytes()}
 			} else {
 				return out, errors.New("Unknown user in predicate.")
 			}
-
 
 		default:
 			below := MSP(cond.(Formatted))
