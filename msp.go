@@ -12,7 +12,7 @@ import (
 // secret splitter that allows an application to only decrypt or request shares
 // when needed, rather than re-build a partial map of known data.
 type UserDatabase interface {
-	Users() []string
+	ValidUser(name string) bool
 	CanGetShare(string) bool
 	GetShare(string) ([][]byte, error)
 }
@@ -162,13 +162,7 @@ func (m MSP) DerivePath(db *UserDatabase) (ok bool, names []string, locs []int, 
 }
 
 func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (map[string][][]byte, error) {
-	// Initialize user -> shares map.
-	users := (*db).Users()
-	out := make(map[string][][]byte, len(users))
-
-	for _, name := range users {
-		out[name] = [][]byte{}
-	}
+	out := make(map[string][][]byte)
 
 	// Math to distribute shares.
 	secInt := big.NewInt(0).SetBytes(sec) // Convert secret to number.
@@ -203,7 +197,12 @@ func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (m
 		switch cond.(type) {
 		case String:
 			name := cond.(String).string
-			out[name] = append(out[name], share.Bytes())
+			if _, ok := out[name]; ok {
+				out[name] = append(out[name], share.Bytes())
+			} else {
+				out[name] = [][]byte{share.Bytes()}
+			}
+
 
 		default:
 			below := MSP(cond.(Formatted))
@@ -213,7 +212,12 @@ func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (m
 			}
 
 			for name, shares := range subOut {
-				out[name] = append(out[name], shares...)
+				if _, ok := out[name]; ok {
+					out[name] = append(out[name], shares...)
+				} else {
+					out[name] = shares
+				}
+
 			}
 		}
 	}

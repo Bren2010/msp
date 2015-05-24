@@ -61,9 +61,9 @@ Documentation
 
 ```go
 type UserDatabase interface {
-	Users() []string // Exhaustive list of party names.
-	CanGetShare(string) bool // Determines if its possible to get a party's shares.
-	GetShare(string) ([][]byte, error) // Retrieves a party's shares.
+	ValidUser(string) bool // Is this the name of an existing user?
+	CanGetShare(string) bool // Can I get this user's share?
+	GetShare(string) ([][]byte, error) // Retrieves a user's shares.
 }
 ```
 

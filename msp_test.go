@@ -9,12 +9,9 @@ import (
 
 type Database map[string][][]byte
 
-func (d Database) Users() (out []string) {
-	for name, _ := range d {
-		out = append(out, name)
-	}
-
-	return
+func (d Database) ValidUser(name string) bool {
+	_, ok := d[name]
+	return ok
 }
 
 func (d Database) CanGetShare(name string) bool {
