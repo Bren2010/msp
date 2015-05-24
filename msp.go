@@ -199,8 +199,10 @@ func (m MSP) DistributeShares(sec []byte, modulus *big.Int, db *UserDatabase) (m
 			name := cond.(String).string
 			if _, ok := out[name]; ok {
 				out[name] = append(out[name], share.Bytes())
-			} else {
+			} else if ((*db).ValidUser(name)) {
 				out[name] = [][]byte{share.Bytes()}
+			} else {
+				return "Unknown user in predicate."
 			}
 
 
