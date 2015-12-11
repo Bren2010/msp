@@ -36,7 +36,7 @@ func TestMSP(t *testing.T) {
 		"Carl":  [][]byte{},
 	}))
 
-	sec := make([]byte, 16)
+	sec := make([]byte, 32)
 	rand.Read(sec)
 	sec[0] &= 63 // Removes first 2 bits of key.
 

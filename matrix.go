@@ -1,4 +1,4 @@
-// Matrix operations for elements in GF(2^128).
+// Matrix operations for elements in GF(2^256).
 package msp
 
 type Row []FieldElem

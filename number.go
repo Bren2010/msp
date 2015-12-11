@@ -8,12 +8,12 @@ import (
 type FieldElem []byte
 
 var (
-	Modulus        FieldElem = []byte{135, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // x^128 + x^7 + x^2 + x + 1
-	ModulusSize    int       = 16
-	ModulusBitSize int       = 128
+	Modulus        FieldElem = []byte{37, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0} // x^256 + x^10 + x^5 + x^2 + 1
+	ModulusSize    int       = 32
+	ModulusBitSize int       = 256
 
-	Zero FieldElem = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
-	One  FieldElem = []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	Zero FieldElem = []byte{0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
+	One  FieldElem = []byte{1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0}
 )
 
 // NewFieldElem returns a new zero element.
@@ -49,6 +49,7 @@ func (e FieldElem) Mul(f FieldElem) FieldElem {
 
 				if carry {
 					temp[0] ^= Modulus[0]
+					temp[1] ^= Modulus[1]
 				}
 			}
 
@@ -74,7 +75,7 @@ func (e FieldElem) Exp(i int) FieldElem {
 func (e FieldElem) Invert() FieldElem {
 	out, temp := e.Dup(), e.Dup()
 
-	for i := 0; i < 126; i++ {
+	for i := 0; i < 254; i++ {
 		temp = temp.Mul(temp)
 		out = out.Mul(temp)
 	}
