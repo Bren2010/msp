@@ -190,14 +190,11 @@ func (m MSP) DistributeShares(sec []byte, db UserDatabase) (map[string][][]byte,
 		switch cond.(type) {
 		case Name:
 			name := cond.(Name).string
-			if _, ok := out[name]; ok {
-				out[name] = append(out[name], share)
-			} else if db.ValidUser(name) {
-				out[name] = [][]byte{share}
-			} else {
-				return out, errors.New("Unknown user in predicate.")
+			if !db.ValidUser(name) {
+				return nil, errors.New("Unknown user in predicate.")
 			}
 
+			out[name] = append(out[name], share)
 		default:
 			below := MSP(cond.(Formatted))
 			subOut, err := below.DistributeShares(share, db)
@@ -206,12 +203,7 @@ func (m MSP) DistributeShares(sec []byte, db UserDatabase) (map[string][][]byte,
 			}
 
 			for name, shares := range subOut {
-				if _, ok := out[name]; ok {
-					out[name] = append(out[name], shares...)
-				} else {
-					out[name] = shares
-				}
-
+				out[name] = append(out[name], shares...)
 			}
 		}
 	}
