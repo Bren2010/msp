@@ -120,7 +120,7 @@ func (f Formatted) String() string {
 	return out + ")"
 }
 
-func (f Formatted) Ok(db *UserDatabase) bool {
+func (f Formatted) Ok(db UserDatabase) bool {
 	// Goes through the smallest number of conditions possible to check if the
 	// threshold gate returns true.  Sometimes requires recursing down to check
 	// nested threshold gates.

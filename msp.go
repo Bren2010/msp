@@ -17,7 +17,7 @@ type UserDatabase interface {
 }
 
 type Condition interface { // Represents one condition in a predicate
-	Ok(*UserDatabase) bool
+	Ok(UserDatabase) bool
 }
 
 type Name struct { // Type of condition
@@ -25,8 +25,8 @@ type Name struct { // Type of condition
 	index int
 }
 
-func (n Name) Ok(db *UserDatabase) bool {
-	return (*db).CanGetShare(n.string)
+func (n Name) Ok(db UserDatabase) bool {
+	return db.CanGetShare(n.string)
 }
 
 type TraceElem struct {
@@ -120,13 +120,13 @@ func StringToMSP(pred string) (m MSP, err error) {
 // names: The names in the top-level threshold gate that need to be delegated.
 // locs:  The index in the treshold gate for each name.
 // trace: All names that must be delegated for for this gate to be satisfied.
-func (m MSP) DerivePath(db *UserDatabase) (ok bool, names []string, locs []int, trace []string) {
+func (m MSP) DerivePath(db UserDatabase) (ok bool, names []string, locs []int, trace []string) {
 	ts := &TraceSlice{}
 
 	for i, cond := range m.Conds {
 		switch cond.(type) {
 		case Name:
-			if (*db).CanGetShare(cond.(Name).string) {
+			if db.CanGetShare(cond.(Name).string) {
 				heap.Push(ts, TraceElem{
 					i,
 					[]string{cond.(Name).string},
@@ -153,7 +153,7 @@ func (m MSP) DerivePath(db *UserDatabase) (ok bool, names []string, locs []int, 
 
 // DistributeShares takes as input a secret and a user database and returns secret shares according to access structure
 // described by the MSP.
-func (m MSP) DistributeShares(sec []byte, db *UserDatabase) (map[string][][]byte, error) {
+func (m MSP) DistributeShares(sec []byte, db UserDatabase) (map[string][][]byte, error) {
 	out := make(map[string][][]byte)
 
 	// Generate a Vandermonde matrix.
@@ -192,7 +192,7 @@ func (m MSP) DistributeShares(sec []byte, db *UserDatabase) (map[string][][]byte
 			name := cond.(Name).string
 			if _, ok := out[name]; ok {
 				out[name] = append(out[name], share)
-			} else if (*db).ValidUser(name) {
+			} else if db.ValidUser(name) {
 				out[name] = [][]byte{share}
 			} else {
 				return out, errors.New("Unknown user in predicate.")
@@ -220,12 +220,12 @@ func (m MSP) DistributeShares(sec []byte, db *UserDatabase) (map[string][][]byte
 }
 
 // RecoverSecret takes a user database storing secret shares as input and returns the original secret.
-func (m MSP) RecoverSecret(db *UserDatabase) ([]byte, error) {
+func (m MSP) RecoverSecret(db UserDatabase) ([]byte, error) {
 	cache := make(map[string][][]byte, 0) // Caches un-used shares for a user.
 	return m.recoverSecret(db, cache)
 }
 
-func (m MSP) recoverSecret(db *UserDatabase, cache map[string][][]byte) ([]byte, error) {
+func (m MSP) recoverSecret(db UserDatabase, cache map[string][][]byte) ([]byte, error) {
 	var (
 		index  = []int{}       // Indexes where given shares were in the matrix.
 		shares = []FieldElem{} // Contains shares that will be used in reconstruction.
@@ -238,7 +238,7 @@ func (m MSP) recoverSecret(db *UserDatabase, cache map[string][][]byte) ([]byte,
 
 	for _, name := range names {
 		if _, cached := cache[name]; !cached {
-			out, err := (*db).GetShare(name)
+			out, err := db.GetShare(name)
 			if err != nil {
 				return nil, err
 			}
