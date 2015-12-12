@@ -124,18 +124,18 @@ func (m MSP) DerivePath(db UserDatabase) (ok bool, names []string, locs []int, t
 	ts := &TraceSlice{}
 
 	for i, cond := range m.Conds {
-		switch cond.(type) {
+		switch cond := cond.(type) {
 		case Name:
-			if db.CanGetShare(cond.(Name).string) {
+			if db.CanGetShare(cond.string) {
 				heap.Push(ts, TraceElem{
 					i,
-					[]string{cond.(Name).string},
-					[]string{cond.(Name).string},
+					[]string{cond.string},
+					[]string{cond.string},
 				})
 			}
 
 		case Formatted:
-			sok, _, _, strace := MSP(cond.(Formatted)).DerivePath(db)
+			sok, _, _, strace := MSP(cond).DerivePath(db)
 			if sok {
 				heap.Push(ts, TraceElem{i, []string{}, strace})
 			}
@@ -187,16 +187,16 @@ func (m MSP) DistributeShares(sec []byte, db UserDatabase) (map[string][][]byte,
 	for i, cond := range m.Conds {
 		share := shares[i]
 
-		switch cond.(type) {
+		switch cond := cond.(type) {
 		case Name:
-			name := cond.(Name).string
+			name := cond.string
 			if !db.ValidUser(name) {
 				return nil, errors.New("Unknown user in predicate.")
 			}
 
 			out[name] = append(out[name], share)
-		default:
-			below := MSP(cond.(Formatted))
+		case Formatted:
+			below := MSP(cond)
 			subOut, err := below.DistributeShares(share, db)
 			if err != nil {
 				return out, err
@@ -243,16 +243,16 @@ func (m MSP) recoverSecret(db UserDatabase, cache map[string][][]byte) ([]byte, 
 		gate := m.Conds[loc]
 		index = append(index, loc+1)
 
-		switch gate.(type) {
+		switch gate := gate.(type) {
 		case Name:
-			if len(cache[gate.(Name).string]) <= gate.(Name).index {
+			if len(cache[gate.string]) <= gate.index {
 				return nil, errors.New("Predicate / database mismatch!")
 			}
 
-			shares = append(shares, FieldElem(cache[gate.(Name).string][gate.(Name).index]))
+			shares = append(shares, FieldElem(cache[gate.string][gate.index]))
 
 		case Formatted:
-			share, err := MSP(gate.(Formatted)).recoverSecret(db, cache)
+			share, err := MSP(gate).recoverSecret(db, cache)
 			if err != nil {
 				return nil, err
 			}

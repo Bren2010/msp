@@ -109,11 +109,11 @@ func (f Formatted) String() string {
 	out := fmt.Sprintf("(%v", f.Min)
 
 	for _, cond := range f.Conds {
-		switch cond.(type) {
+		switch cond := cond.(type) {
 		case Name:
-			out += fmt.Sprintf(", %v", cond.(Name).string)
+			out += fmt.Sprintf(", %v", cond.string)
 		case Formatted:
-			out += fmt.Sprintf(", %v", (cond.(Formatted)).String())
+			out += fmt.Sprintf(", %v", cond.String())
 		}
 	}
 
@@ -149,9 +149,8 @@ func (f *Formatted) Compress() {
 				continue
 			}
 
-			switch cond.(type) {
+			switch cond := cond.(type) {
 			case Formatted:
-				cond := cond.(Formatted)
 				cond.Compress()
 				f.Conds[i] = cond
 
@@ -172,9 +171,8 @@ func (f *Formatted) Compress() {
 				continue
 			}
 
-			switch cond.(type) {
+			switch cond := cond.(type) {
 			case Formatted:
-				cond := cond.(Formatted)
 				cond.Compress()
 				f.Conds[i] = cond
 
