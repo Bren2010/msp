@@ -20,8 +20,8 @@ func (t NodeType) Type() NodeType {
 type Raw struct { // Represents one node in the tree.
 	NodeType
 
-	Left  *Condition
-	Right *Condition
+	Left  Condition
+	Right Condition
 }
 
 func StringToRaw(r string) (out Raw, err error) {
@@ -113,8 +113,8 @@ func StringToRaw(r string) (out Raw, err error) {
 
 						leftOperand.Next().Value = Raw{
 							NodeType: typ,
-							Left:     &left,
-							Right:    &right,
+							Left:     left,
+							Right:    right,
 						}
 
 						leftOperand = leftOperand.Next()
@@ -135,9 +135,9 @@ func StringToRaw(r string) (out Raw, err error) {
 				if len(r) == 0 {
 					res := top[0].Front().Value
 
-					switch res.(type) {
+					switch res := res.(type) {
 					case Raw:
-						return res.(Raw), nil
+						return res, nil
 					default:
 						return out, errors.New("Invalid string: Only one condition was found.")
 					}
@@ -166,11 +166,11 @@ func StringToRaw(r string) (out Raw, err error) {
 func (r Raw) String() string {
 	out := ""
 
-	switch (*r.Left).(type) {
+	switch left := r.Left.(type) {
 	case Name:
-		out += (*r.Left).(Name).string
-	default:
-		out += "(" + (*r.Left).(Raw).String() + ")"
+		out += left.string
+	case Raw:
+		out += "(" + left.String() + ")"
 	}
 
 	if r.Type() == NodeAnd {
@@ -179,11 +179,11 @@ func (r Raw) String() string {
 		out += " | "
 	}
 
-	switch (*r.Right).(type) {
+	switch right := r.Right.(type) {
 	case Name:
-		out += (*r.Right).(Name).string
-	default:
-		out += "(" + (*r.Right).(Raw).String() + ")"
+		out += right.string
+	case Raw:
+		out += "(" + right.String() + ")"
 	}
 
 	return out
@@ -198,28 +198,28 @@ func (r Raw) Formatted() (out Formatted) {
 		out.Min = 1
 	}
 
-	switch (*r.Left).(type) {
+	switch left := r.Left.(type) {
 	case Name:
-		out.Conds = []Condition{(*r.Left).(Name)}
-	default:
-		out.Conds = []Condition{(*r.Left).(Raw).Formatted()}
+		out.Conds = []Condition{left}
+	case Raw:
+		out.Conds = []Condition{left.Formatted()}
 	}
 
-	switch (*r.Right).(type) {
+	switch right := r.Right.(type) {
 	case Name:
-		out.Conds = append(out.Conds, (*r.Right).(Name))
-	default:
-		out.Conds = append(out.Conds, (*r.Right).(Raw).Formatted())
+		out.Conds = append(out.Conds, right)
+	case Raw:
+		out.Conds = append(out.Conds, right.Formatted())
 	}
 
 	out.Compress() // Small amount of predicate compression.
 	return
 }
 
-func (r Raw) Ok(db *UserDatabase) bool {
+func (r Raw) Ok(db UserDatabase) bool {
 	if r.Type() == NodeAnd {
-		return (*r.Left).Ok(db) && (*r.Right).Ok(db)
+		return r.Left.Ok(db) && r.Right.Ok(db)
 	} else {
-		return (*r.Left).Ok(db) || (*r.Right).Ok(db)
+		return r.Left.Ok(db) || r.Right.Ok(db)
 	}
 }
