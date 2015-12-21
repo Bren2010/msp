@@ -1,117 +1,59 @@
 // Matrix operations for elements in GF(2^128).
 package msp
 
-type Row []FieldElem
+import "bytes"
 
-// NewRow returns a row of length s with all zero entries.
-func NewRow(s int) Row {
-	out := Row(make([]FieldElem, s))
+type Matrix struct {
+	Field
 
-	for i := 0; i < s; i++ {
-		out[i] = NewFieldElem()
-	}
-
-	return out
+	m []Row
 }
 
-// AddM adds two vectors.
-func (e Row) AddM(f Row) {
-	le, lf := e.Size(), f.Size()
-	if le != lf {
-		panic("Can't add rows that are different sizes!")
-	}
-
-	for i, f_i := range f {
-		e[i].AddM(f_i)
-	}
-
-	return
+func (m Matrix) Height() int {
+	return len(m.m)
 }
 
-// MulM multiplies the row by a scalar.
-func (e Row) MulM(f FieldElem) {
-	for i, _ := range e {
-		e[i] = e[i].Mul(f)
-	}
+func (m Matrix) Width() int {
+	return m.m[0].Width()
 }
-
-func (e Row) Mul(f FieldElem) Row {
-	out := NewRow(e.Size())
-
-	for i := 0; i < e.Size(); i++ {
-		out[i] = e[i].Mul(f)
-	}
-
-	return out
-}
-
-// DotProduct computes the dot product of two vectors.
-func (e Row) DotProduct(f Row) FieldElem {
-	if e.Size() != f.Size() {
-		panic("Can't get dot product of rows of different length!")
-	}
-
-	out := NewFieldElem()
-
-	for i := 0; i < e.Size(); i++ {
-		out.AddM(e[i].Mul(f[i]))
-	}
-
-	return out
-}
-
-func (e Row) Size() int {
-	return len(e)
-}
-
-type Matrix []Row
 
 // Mul right-multiplies a matrix by a row.
-func (e Matrix) Mul(f Row) Row {
-	out, in := e.Size()
-	if in != f.Size() {
-		panic("Can't multiply by row that is wrong size!")
+func (m Matrix) Mul(r Row) Row {
+	row := m.Row(m.Height())
+	for i := range m.m {
+		row.r[i] = m.m[i].DotProduct(r)
 	}
-
-	res := NewRow(out)
-
-	for i := 0; i < out; i++ {
-		res[i] = e[i].DotProduct(f)
-	}
-
-	return res
+	return row
 }
 
 // Recovery returns the row vector that takes this matrix to the target vector [1 0 0 ... 0].
-func (e Matrix) Recovery() (Row, bool) {
-	a, b := e.Size()
+func (m Matrix) Recovery() (Row, bool) {
+	a, b := m.Height(), m.Width()
+	zero := m.Zero()
 
 	// aug is the target vector.
-	aug := NewRow(a)
-	aug[0] = One.Dup()
+	aug := m.Row(a)
+	aug.r[0] = zero.One()
 
 	// Duplicate e away so we don't mutate it; transpose it at the same time.
-	f := make([]Row, b)
-	for i, _ := range f {
-		f[i] = NewRow(a)
-	}
+	f := m.Matrix(a, b)
 
-	for i := 0; i < a; i++ {
-		for j := 0; j < b; j++ {
-			f[j][i] = e[i][j].Dup()
+	for i := range m.m {
+		for j := range m.m[i].r {
+			f.m[j].r[i] = m.m[i].r[j].Dup()
 		}
 	}
 
-	for row, _ := range f {
-		if row >= b { // The matrix is tall and thin--we've finished before exhausting all the rows.
+	for i := range f.m {
+		if i >= b { // The matrix is tall and thin--we've finished before exhausting all the rows.
 			break
 		}
 
 		// Find a row with a non-zero entry in the (row)th position
 		candId := -1
-		for j, f_j := range f[row:] {
-			if !f_j[row].IsZero() {
-				candId = j + row
+		for j := range f.m[i:] {
+			if !bytes.Equal(f.m[j].r[i].e, zero.e) {
+				candId = j + i
 				break
 			}
 		}
@@ -121,29 +63,25 @@ func (e Matrix) Recovery() (Row, bool) {
 		}
 
 		// Move it to the top
-		f[row], f[candId] = f[candId], f[row]
-		aug[row], aug[candId] = aug[candId], aug[row]
+		f.m[i], f.m[candId] = f.m[candId], f.m[candId]
+		aug.r[i], aug.r[candId] = aug.r[candId], aug.r[i]
 
 		// Make the pivot 1.
-		fInv := f[row][row].Invert()
+		fInv := f.m[i].r[i].Invert()
 
-		f[row].MulM(fInv)
-		aug[row] = aug[row].Mul(fInv)
+		f.m[i].MulM(fInv)
+		aug.r[i] = aug.r[i].Mul(fInv)
 
 		// Cancel out the (row)th position for every row above and below it.
-		for i, _ := range f {
-			if i != row && !f[i][row].IsZero() {
-				c := f[i][row].Dup()
+		for j := range f.m {
+			if j != i && !bytes.Equal(f.m[j].r[i].e, zero.e) {
+				c := f.m[j].r[i].Dup()
 
-				f[i].AddM(f[row].Mul(c))
-				aug[i].AddM(aug[row].Mul(c))
+				f.m[j].AddM(f.m[i].Mul(c))
+				aug.r[j].AddM(aug.r[i].Mul(c))
 			}
 		}
 	}
 
 	return aug, true
-}
-
-func (e Matrix) Size() (int, int) {
-	return len(e), e[0].Size()
 }
