@@ -156,28 +156,31 @@ func (m MSP) DerivePath(db UserDatabase) (ok bool, names []string, locs []int, t
 func (m MSP) DistributeShares(sec []byte, db UserDatabase) (map[string][][]byte, error) {
 	out := make(map[string][][]byte)
 
+	field, ok := Fields[len(sec)]
+	if !ok {
+		return nil, errors.New("No field for secret length")
+	}
+
 	// Generate a Vandermonde matrix.
 	height, width := len(m.Conds), m.Min
-	M := Matrix(make([]Row, height))
+	M := field.Matrix(height, width)
 
-	for i := 0; i < height; i++ {
-		M[i] = NewRow(width)
-
-		for j := 0; j < width; j++ {
-			M[i][j][0] = byte(i + 1)
-			M[i][j] = M[i][j].Exp(j)
+	for i := range M.m {
+		for j := range M.m[i].r {
+			M.m[i].r[j].e[0] = byte(i + 1)
+			M.m[i].r[j] = M.m[i].r[j].Exp(j)
 		}
 	}
 
 	// Convert secret vector.
-	s := NewRow(width)
-	s[0] = FieldElem(sec)
+	s, buf := field.Row(width), make([]byte, len(sec))
+	for i := range s.r {
+		rand.Read(buf)
+		if i == 0 {
+			copy(buf, sec)
+		}
 
-	for i := 1; i < width; i++ {
-		r := NewFieldElem()
-		rand.Read(r)
-
-		s[i] = FieldElem(r)
+		s.r[i] = field.Elem(buf)
 	}
 
 	// Calculate shares.
@@ -185,7 +188,7 @@ func (m MSP) DistributeShares(sec []byte, db UserDatabase) (map[string][][]byte,
 
 	// Distribute the shares.
 	for i, cond := range m.Conds {
-		share := shares[i]
+		share := shares.r[i]
 
 		switch cond := cond.(type) {
 		case Name:
@@ -194,10 +197,10 @@ func (m MSP) DistributeShares(sec []byte, db UserDatabase) (map[string][][]byte,
 				return nil, errors.New("Unknown user in predicate.")
 			}
 
-			out[name] = append(out[name], share)
+			out[name] = append(out[name], share.Bytes())
 		case Formatted:
 			below := MSP(cond)
-			subOut, err := below.DistributeShares(share, db)
+			subOut, err := below.DistributeShares(share.Bytes(), db)
 			if err != nil {
 				return out, err
 			}
@@ -219,8 +222,8 @@ func (m MSP) RecoverSecret(db UserDatabase) ([]byte, error) {
 
 func (m MSP) recoverSecret(db UserDatabase, cache map[string][][]byte) ([]byte, error) {
 	var (
-		index  = []int{}       // Indexes where given shares were in the matrix.
-		shares = []FieldElem{} // Contains shares that will be used in reconstruction.
+		index  = []int{}  // Indexes where given shares were in the matrix.
+		shares = []Elem{} // Contains shares that will be used in reconstruction.
 	)
 
 	ok, names, locs, _ := m.DerivePath(db)
@@ -228,6 +231,7 @@ func (m MSP) recoverSecret(db UserDatabase, cache map[string][][]byte) ([]byte, 
 		return nil, errors.New("Not enough shares to recover.")
 	}
 
+	var field Field
 	for _, name := range names {
 		if _, cached := cache[name]; !cached {
 			out, err := db.GetShare(name)
@@ -236,6 +240,14 @@ func (m MSP) recoverSecret(db UserDatabase, cache map[string][][]byte) ([]byte, 
 			}
 
 			cache[name] = out
+
+			var ok bool
+			if field == nil {
+				field, ok = Fields[len(out[0])]
+				if !ok {
+					return nil, errors.New("No field for secret length")
+				}
+			}
 		}
 	}
 
@@ -249,7 +261,7 @@ func (m MSP) recoverSecret(db UserDatabase, cache map[string][][]byte) ([]byte, 
 				return nil, errors.New("Predicate / database mismatch!")
 			}
 
-			shares = append(shares, FieldElem(cache[gate.string][gate.index]))
+			shares = append(shares, field.Elem(cache[gate.string][gate.index]))
 
 		case Formatted:
 			share, err := MSP(gate).recoverSecret(db, cache)
@@ -257,19 +269,17 @@ func (m MSP) recoverSecret(db UserDatabase, cache map[string][][]byte) ([]byte, 
 				return nil, err
 			}
 
-			shares = append(shares, FieldElem(share))
+			shares = append(shares, field.Elem(share))
 		}
 	}
 
 	// Generate the Vandermonde matrix specific to whichever users' shares we're using.
-	MSub := Matrix(make([]Row, m.Min))
+	MSub := field.Matrix(m.Min, m.Min)
 
-	for i := 0; i < m.Min; i++ {
-		MSub[i] = NewRow(m.Min)
-
-		for j := 0; j < m.Min; j++ {
-			MSub[i][j][0] = byte(index[i])
-			MSub[i][j] = MSub[i][j].Exp(j)
+	for i := range MSub.m {
+		for j := range MSub.m[i].r {
+			MSub.m[i].r[j].e[0] = byte(index[i])
+			MSub.m[i].r[j] = MSub.m[i].r[j].Exp(j)
 		}
 	}
 
@@ -281,7 +291,7 @@ func (m MSP) recoverSecret(db UserDatabase, cache map[string][][]byte) ([]byte, 
 
 	// Compute dot product of the shares vector and the reconstruction vector to
 	// recover the secret.
-	s := Row(shares).DotProduct(r)
+	s := Row{Field: field, r: shares}.DotProduct(r)
 
-	return []byte(s), nil
+	return s.Bytes(), nil
 }
